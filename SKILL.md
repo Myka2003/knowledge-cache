@@ -106,6 +106,19 @@ Use the language of the user's input, but **the markers themselves stay Chinese*
 
 有几方就写几段，段数由内容决定，不为凑数硬加。只留一条主张时，就只有一段 —— 那是正确答案，不是写少了。
 
+## 交付形态：出图，不要发 md
+
+md 在各处显示不完美（有的客户端不渲染加粗与表格，有的排版全乱），**只有图到哪儿都一样**。所以报告默认转成图再发：
+
+```bash
+python3 scripts/report-card.py 报告.md          # → 报告.png（按内容高度裁齐）
+cat 报告.md | python3 scripts/report-card.py - --out out.png
+```
+
+- 需要有 **PIL** 的解释器（无 PIL 也能出图，只是不裁剪、底部留白）
+- 宽度默认 780px，手机上正好；深底 + Geist，与这套体系其他产物一致
+- **文字版只在对方明确要可复制内容时给**，其余一律发图
+
 ## Judgment
 
 Apply the same standard to every side. Equal scrutiny does not mean equal blame. If one side is plainly weaker, say so. Do not manufacture balance with phrases such as "both sides make good points."

@@ -17,7 +17,12 @@ F=$(dirname "$(readlink -f ~/.hermes/skills/knowledge-cache/SKILL.md)")
 # ① 不许残留会被照抄的具体例子（标签/口号/固定句式/比喻）
 grep -nE "红丸|社会正义|1850|衣服是新的|anecdotal|bullets" "$F" && echo "FAIL: 有会被照搬的例子" || echo "OK: 无例子残留"
 # ② 牌子必须齐全（中文标记）
-for k in 旧货鉴定 新鲜度 旧货清单 还没定 新货 省流; do grep -q "$k" "$F" || echo "FAIL: 缺牌 $k"; done
+# 牌子按当前契约（自然段版，无小标题）
+for k in 旧货鉴定 新鲜度 真正吵的是 省流; do grep -q "$k" "$F" || echo "FAIL: 缺牌 $k"; done
+grep -qE "自然段|不设小标题" "$F" || echo "FAIL: 输出契约没写明自然段"
+grep -q "交付形态" "$F" || echo "FAIL: 缺「交付形态」节（出图）"
+# 卡片工具必须能跑（有脚本、语法过）
+python3 -c "import ast,pathlib;ast.parse(pathlib.Path('scripts/report-card.py').read_text())" 2>/dev/null || echo "FAIL: scripts/report-card.py 语法错"
 # ③ 步骤数与契约必须一致（改过一条就要回头改另一条）
 grep -n "five in order" "$F" || echo "WARN: 步骤措辞与契约可能不同步"
 ```
@@ -40,3 +45,8 @@ grep -n "five in order" "$F" || echo "WARN: 步骤措辞与契约可能不同步
 
 - 本地 git：`git -C /home/riff/skills/personal/knowledge-cache log --oneline`
 - 远端（GitHub）**待接**：这台机器上没有 `gh`、没有全局 git 身份，远端地址与凭据需用户提供后再推
+
+## 卡片渲染的两个坑（踩过，别重踩）
+
+1. **`file://` 加载字体被 CORS 拦** —— @font-face 会**静默失败**，页面看起来正常但字体从未生效。解法：字体内嵌 base64（data URI）。
+2. **CSS 变量名与 @font-face 名字必须一致** —— 对不上也是静默兜底。验收方法：**真字体 vs 强制兜底 A/B 对比墨迹**，两份一样就说明没生效（只看图会被骗）。
