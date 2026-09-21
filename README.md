@@ -45,6 +45,29 @@ ln -sfn ~/skills/knowledge-cache ~/.hermes/skills/knowledge-cache
 
 （本仓库是**单一事实源**。`~/.hermes/skills/knowledge-cache/` 下出现同名 `SKILL.md` 实体文件 = 装错了，删掉。）
 
+### 干净地派一个 agent 来跑（推荐）
+
+鉴定结果的质量取决于**上下文有多干净**。如果让一个带着长期记忆、还知道你和谁在聊什么的 agent 来写，结论会被这些污染 —— 所以 `scripts/dispatch-verdict.sh` 每次都开一个**隔离 session**：
+
+```bash
+scripts/dispatch-verdict.sh --setup                    # 首次：建一个空的 verdict profile（无记忆）
+scripts/dispatch-verdict.sh 材料.md                     # 出 report.md + report.png
+scripts/dispatch-verdict.sh --text "要鉴定的话"
+cat 材料.md | scripts/dispatch-verdict.sh -
+scripts/dispatch-verdict.sh --probe                    # 隔离自检：让它自报上下文里有没有记忆
+```
+
+隔离靠四件事，缺一不可：
+
+| | 做法 | 为什么 |
+|---|---|---|
+| 长期记忆 | 单独的 `verdict` profile（`memories/` 是空的） | **实测 `--ignore-rules` 和 `--ignore-user-config` 都挡不住记忆注入**，只有 profile 能 |
+| 对话历史 | 不带 `--continue/--resume` | 每次全新 session |
+| 环境规则 | 单独一个空工作目录 + `--ignore-rules` | 不读 CWD 的 `AGENTS.md`/`SOUL.md` |
+| 能对外发消息 | profile 的 `.env` 只放推理 key | 子 session 拿不到平台 token，发不出去 |
+
+默认模型 `deepseek/deepseek-v4.1-flash`、思考档 `max`，可用 `--model/--provider/--reasoning` 覆盖；产出目录里有 `material.md`（你的原话，原样不改）、`prompt.txt`（真正发出去的东西）、`report.md`、`report.png`、`meta.json`。跑一次大约 4~5 分钟。
+
 ### 只想要渲染器
 
 `scripts/` 下的两个脚本都能把上面的 markdown 变成卡片图，可以单独拿去用：
@@ -86,6 +109,7 @@ README.md              这份
 docs/design.md         迭代记录：为什么这么改
 scripts/card-pil.py    卡片渲染器（纯 Pillow）
 scripts/report-card.py 卡片渲染器（无头浏览器版，对照用）
+scripts/dispatch-verdict.sh  干净地派一个隔离 session 来跑（无记忆、无历史）
 assets/fonts/          标题字体 + 正文字体 + 它们的授权
 examples/              示例报告与成品图
 ```
