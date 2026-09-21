@@ -16,26 +16,30 @@ from __future__ import annotations
 import argparse
 import base64
 import html
+import os
 import pathlib
 import re
 import subprocess
 import sys
 import tempfile
 
+PKG = pathlib.Path(__file__).resolve().parent.parent
+ENV_FONT_DIRS = [pathlib.Path(p) for p in os.environ.get("CARD_FONT_DIRS", "").split(":") if p]
+
 FONT_FILES = {
     # 优先包内（随包走，扔给任何 agent 都能用）；退回用户字体目录
     "CardHead": next((p for p in [
-        pathlib.Path(__file__).resolve().parent.parent / "assets/fonts/WDXLLubrifontSC-Regular.ttf",
-        pathlib.Path("/home/riff/.local/share/fonts/WDXLLubrifontSC-Regular.ttf"),
+        PKG / "assets/fonts/WDXLLubrifontSC-Regular.ttf",
+        pathlib.Path.home() / ".local/share/fonts/WDXLLubrifontSC-Regular.ttf",
     ] if p.exists()), pathlib.Path("/nonexistent")),
     "CardHeadAlt": next((p for p in [
-        pathlib.Path(__file__).resolve().parent.parent / "assets/fonts/ZCOOLQingKeHuangYou-Regular.ttf",
+        PKG / "assets/fonts/ZCOOLQingKeHuangYou-Regular.ttf",
     ] if p.exists()), pathlib.Path("/nonexistent")),
 }
 
-FONT_DIRS = [
-    pathlib.Path("/home/riff/skills/personal/oh-my-life/assets/fonts"),
-    pathlib.Path("/home/riff/skills/personal/knowledge-cache/assets/fonts"),
+FONT_DIRS = ENV_FONT_DIRS + [
+    PKG / "assets/fonts",
+    pathlib.Path.home() / ".local/share/fonts",
 ]
 SANS_NAMES = ("Geist-Variable.woff2",)
 MONO_NAMES = ("GeistMono-Variable.woff2",)
