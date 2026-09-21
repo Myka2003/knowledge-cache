@@ -105,6 +105,7 @@ EMO_FS = 44
 NUM_FS, NUM_LH, PCT_FS, PCT_ML = 60, 0.86, 24, 2
 LAB_FS, LAB_LS, LAB_PB, LAB_LH = 11, 0.16, 7, 1.76
 BADGE_FS, BADGE_LS, BADGE_LH = 12, 0.16, 1.76
+STAMP_FS, STAMP_LS, STAMP_LH, STAMP_GAP = 26, 0.06, 1.5, 10   # 盖章语（品牌固定语）
 BADGE_PX, BADGE_PY, BADGE_MB = 10, 4, 6
 
 NOTE_MT, NOTE_BORDER, NOTE_PT = 22, 3, 14
@@ -116,7 +117,7 @@ TLDR_V_FS, TLDR_V_LH, TLDR_V_MT = 16.5, 1.6, 8
 
 HR_BORDER, HR_MY = 3, 22
 
-EMO_CHAR = {"烂": "\U0001F480", "鲜": "\U0001F345"}   # 💀 / 🍅
+EMO_CHAR = {"烂": "\U0001F480", "鲜": "\U0001F345", "NEW": "\U0001F480"}   # 💀 / 🍅
 
 # ─────────────────────────── 断行规则 ───────────────────────────
 # 不能出现在行首的收尾标点（遇到就粘到前一个字符上）
@@ -146,6 +147,9 @@ HEAD_FILES = [
 
 BODY_FAMILY = "Noto Sans CJK SC"
 BODY_PATTERNS = [
+    # 包内自带的静态 Regular（+ 同目录 Bold 供 _detect_bold 找）—— 随仓库走，任何机器开箱即用
+    str(PKG_ROOT / "assets/fonts/NotoSansCJKsc-Regular.otf"),
+    str(PKG_ROOT / "assets/fonts/NotoSansCJKsc-Bold.otf"),
     "/run/current-system/sw/share/fonts/**/*CJK*",
     "/usr/share/fonts/**/*CJK*",
     "/usr/local/share/fonts/**/*CJK*",
@@ -165,11 +169,12 @@ MONO_PATTERNS = [
 ]
 EMOJI_FAMILY = "Noto Color Emoji"
 EMOJI_PATTERNS = [
+    # macOS 的鲜/烂章靠它：钉死首选，不是顺带命中（Linux 退 Noto Color Emoji）
+    "/System/Library/Fonts/Apple Color Emoji.ttc",
     "/run/current-system/sw/share/fonts/**/NotoColorEmoji.ttf",
     "/usr/share/fonts/**/NotoColorEmoji.ttf",
     "/nix/store/*noto-fonts-color-emoji*/share/fonts/noto/NotoColorEmoji.ttf",
     "~/.local/share/fonts/**/NotoColorEmoji.ttf",
-    "/System/Library/Fonts/Apple Color Emoji.ttc",
 ]
 EMOJI_SIZES = (109, 136, 137, 128, 101, 64, 32)   # CBDT 位图字体只认特定位图尺寸
 
@@ -260,6 +265,9 @@ class FontBook:
             sys.exit("找不到中文正文字体（Noto Sans CJK SC）；没法排版，直接失败而不是画出豆腐块。"
                      f"（可放一份到 {PKG_ROOT}/assets/fonts/）")
         mp, mi = self._pick(MONO_FAMILY, MONO_PATTERNS, "等宽小字字体")
+        if mp is not None and not self._covers_cjk(mp, mi):
+            self.notes.append("等宽字体不含中文字形 → 中文小字回退正文字体")
+            mp, mi = None, 0
         self.mono_path, self.mono_idx = (mp, mi) if mp else (self.body_path, self.body_idx)
         ep = self._pick_path(EMOJI_FAMILY, EMOJI_PATTERNS)
         self.emoji_path = ep
@@ -279,7 +287,12 @@ class FontBook:
         return None
 
     def _pick(self, family, patterns, label):
-        for path in _candidates(family, patterns):
+        cands = _candidates(family, patterns)
+        # 静态字重文件（Bold/Light…）不是正文本体：Regular 优先，字重交给 _detect_bold 找
+        # （同一目录里 "Bold" 按字典序永远排在 "Regular" 前面，不排会整篇用粗体渲染）
+        cands.sort(key=lambda p: (
+            bool(re.search(r"(Bold|Black|Heavy|Medium|DemiLight|Light)", pathlib.Path(p).name)), p))
+        for path in cands:
             try:
                 idx = _probe_index(path, family)
                 ImageFont.truetype(path, 24, index=idx)
@@ -288,6 +301,16 @@ class FontBook:
                 continue
         self.notes.append(f"找不到{label} → 回退")
         return None, 0
+
+    def _covers_cjk(self, path, idx) -> bool:
+        """能画出「陈旧率」且不是 .notdef 豆腐块（Menlo 这类纯西文字体在此被拒）。"""
+        try:
+            f = ImageFont.truetype(path, 24, index=idx)
+            real = f.getmask("陈旧率").getbbox()
+            notdef = f.getmask("\U000F0000\U000F0001\U000F0002").getbbox()
+            return bool(real) and real != notdef
+        except Exception:
+            return False
 
     def _detect_bold(self):
         """优先用可变字重的 Bold 实例；否则找独立 Bold 文件；再不然双描 1px 模拟。"""
@@ -539,6 +562,12 @@ def parse_md(md: str) -> list[dict]:
             body = re.sub(r"^\**\s*省流[：:]\s*", "", s).strip().strip("*").strip()
             blocks.append({"t": "tldr", "text": body})
             continue
+        if s.startswith("**先说清楚") or s.startswith("先说清楚"):
+            flush()
+            body = re.sub(r"^\**\s*先说清楚[：:]\s*", "", s).strip().strip("*").strip()
+            body = body.replace("**", "")   # 引言块统一细体，不吃段内加粗
+            blocks.append({"t": "clarify", "text": body})
+            continue
         if s.startswith("*") and s.endswith("*") and not s.startswith("**"):
             flush()
             blocks.append({"t": "note", "text": s.strip("*").strip()})
@@ -549,11 +578,15 @@ def parse_md(md: str) -> list[dict]:
 
 
 def _parse_score(line: str) -> dict:
+    m_stamp = re.search(r"【([^】]+)】", line)
+    stamp = m_stamp.group(1).strip() if m_stamp else ""
+    if re.search(r"not\s*even\s*wrong", line, re.I):     # 底舱：连错的资格都没有
+        return {"t": "score", "num": "0", "old": "", "tag": "NEW",
+                "stamp": stamp or "Not even wrong —— 连错的资格都没有"}
     m_num = re.search(r"新鲜度[：:＊*\s]*\**\s*(\d+)\s*%", line)
     m_old = re.search(r"陈旧率\s*(\d+)\s*%", line)
     n = int(m_num.group(1)) if m_num else None
-    tag = None
-    m_tag = re.search(r"([烂鲜])\s*\*\*\s*$", line)      # 行尾写死了判定就用它
+    m_tag = re.search(r"([烂鲜])\s*(?:【|\*\*)", line)   # 判定字后面不是盖章语就是收粗体
     if m_tag:
         tag = m_tag.group(1)
     elif n is not None:                                  # 否则按门槛：>=60 鲜，<60 烂
@@ -561,7 +594,7 @@ def _parse_score(line: str) -> dict:
     else:
         tag = "烂" if "烂" in line else "鲜"
     return {"t": "score", "num": str(n) if n is not None else "—",
-            "old": m_old.group(1) if m_old else "", "tag": tag}
+            "old": m_old.group(1) if m_old else "", "tag": tag, "stamp": stamp}
 
 
 # ─────────────────────────── 卡片渲染 ───────────────────────────
@@ -863,6 +896,23 @@ class Card:
         self.landmarks.append(["note", round(y0), round(self.y)])
         self.pending_margin = 0.0
 
+    def blk_clarify(self, text: str):
+        """「先说清楚」行：暗色细体引言，整体套「」，不占正文段、不带左条。"""
+        s = self.s
+        self.add_gap(NOTE_MT)
+        f = self.fb.font("body", NOTE_FS)
+        runs = self.inline_runs(f"「{text}」", NOTE_FS, body_color=FG3)
+        lines = self.wrap_runs(runs, self.cw)
+        line_h = self.px(NOTE_FS * NOTE_LH)
+        y0 = self.y
+        asc, desc = f.getmetrics()
+        for i, line in enumerate(lines):
+            base = self.baseline_of(y0 + i * line_h, line_h, asc, desc)
+            self.ops.append(lambda d, line=line, base=base:
+                            self.draw_line(d, self.x0, base, line, FG3))
+        self.y = y0 + line_h * len(lines)
+        self.landmarks.append(["clarify", round(y0), round(self.y)])
+
     def blk_tldr(self, text: str):
         s = self.s
         self.add_gap(TLDR_MT)
@@ -912,7 +962,7 @@ class Card:
         self.end_block(HR_MY)
 
     # ---- 分数块 ----
-    def blk_score(self, num: str, old: str, tag: str):
+    def blk_score(self, num: str, old: str, tag: str, stamp: str = ""):
         s = self.s
         self.add_gap(SCORE_MT)
         border = self.px(SCORE_BORDER)
@@ -936,8 +986,13 @@ class Card:
         badge_lineh = self.px(BADGE_FS * BADGE_LH)
         badge_boxh = badge_lineh + 2 * self.px(BADGE_PY) + 2 * self.px(1)
         badge_mb = self.px(BADGE_MB)
+        fstamp = self.fb.font("body", STAMP_FS, bold=True)
+        stamp_txt = f"【{stamp}】" if stamp else ""
+        stamp_ls = self.px(STAMP_LS * STAMP_FS)
+        stamp_lineh = self.px(STAMP_FS * STAMP_LH)
+        stamp_h = self.px(STAMP_GAP) + stamp_lineh if stamp_txt else 0
         content_h = max(emo_size, num_boxh, lab_boxh, badge_boxh + badge_mb)
-        box_h = 2 * border + 2 * pady + content_h
+        box_h = 2 * border + 2 * pady + content_h + stamp_h
 
         self.ops.append(lambda d, top=top, box_h=box_h: self.rect(d, 
             [self.x0, top, self.x1, top + box_h], outline=FG, width=int(round(border))))
@@ -971,7 +1026,7 @@ class Card:
             x += lab_w + gap
 
         # 鲜/烂 徽标
-        color = ROT if tag == "烂" else FRESH
+        color = ROT if tag in ("烂", "NEW") else FRESH
         btop = bottom - badge_mb - badge_boxh
         self.ops.append(lambda d, x=x, btop=btop, badge_w=badge_w, badge_boxh=badge_boxh, color=color:
                         self.rect(d, [x, btop, x + badge_w, btop + badge_boxh],
@@ -981,6 +1036,14 @@ class Card:
         bbase = self.baseline_of(btop + self.px(1) + self.px(BADGE_PY), blineh, basc, bdesc)
         self.ops.append(lambda d, x=x, bbase=bbase, tag=tag, fbadge=fbadge, badge_ls=badge_ls, color=color:
                         self.draw_ls(d, x + self.px(1) + self.px(BADGE_PX), bbase, tag, fbadge, color, badge_ls))
+
+        # 盖章语：分数行下方一行，加粗，品牌固定语
+        if stamp_txt:
+            sx = self.x0 + border + padx
+            sasc, sdesc = fstamp.getmetrics()
+            sbase = self.baseline_of(bottom + self.px(STAMP_GAP), stamp_lineh, sasc, sdesc)
+            self.ops.append(lambda d, sx=sx, sbase=sbase, stamp_txt=stamp_txt, fstamp=fstamp, stamp_ls=stamp_ls:
+                            self.draw_ls(d, sx, sbase, stamp_txt, fstamp, FG, stamp_ls))
 
         self.y = top + box_h
         self.landmarks.append(["score", round(top), round(self.y)])
@@ -1030,11 +1093,13 @@ class Card:
             if t == "head":
                 self.blk_head(b["kicker"], b["title"])
             elif t == "score":
-                self.blk_score(b["num"], b["old"], b["tag"])
+                self.blk_score(b["num"], b["old"], b["tag"], b.get("stamp", ""))
             elif t == "p":
                 self.blk_p(b["text"], party=b.get("party"))
             elif t == "note":
                 self.blk_note(b["text"])
+            elif t == "clarify":
+                self.blk_clarify(b["text"])
             elif t == "tldr":
                 self.blk_tldr(b["text"])
             elif t == "h2":

@@ -1,4 +1,4 @@
-# knowledge-cache · 旧货鉴定
+# knowledge-cache · 老登观点鉴定器
 
 给一段争论做**过时性鉴定**，不判对错。
 
@@ -11,15 +11,14 @@
 一份报告 = 自然段 + 分数 + 一张卡片图。
 
 ```
-# 旧货鉴定 · <这一条在赌什么>
+# 老登观点鉴定器 · <这一条在争什么>
 
-**新鲜度 12%（陈旧率 88%）烂**
+**新鲜度 12%（陈旧率 88%）烂【这观点烂爆了】**
 
-**真正在赌的是：** <去掉噪声后，这场到底在争什么>
-**一句话结论：** <哪一边的说法已经被时间淘汰，哪一边还剩活的部分>
+**论断：** <第一句就拆穿 —— 属于哪一支、那支最丢人的死因翻成人话砸出来>
 
-[自然段 · 一方一段]
-① 他这句话在赌什么 → ② 这是哪一群人、哪场运动
+[自然段 · 按节拍分两到四段，粗体拎要害]
+① 这句话站在什么地基上 → ② 这是哪一群人、哪场运动
 → ③ 那场运动怎么收场、为什么 → ④ 把那个死因对准他这句原话
 
 **省流：** <一句能转述的话>
@@ -28,8 +27,10 @@
 规则：
 
 - **新鲜度 = 100% − 陈旧率**，精确到个位，不许写「约」（「约 90%」和「97%」在人心里的重量完全不同）。≥60 记「鲜」🍅，<60 记「烂」💀
+- **分档盖固定章（品牌签名，一个字不改）**：0–29【登瘾又犯了是么】／【出租车司机级别的】；30–59【嘉豪觉得又自己行了】／【只有我】；60–89【至少不无聊】；90–100【这观点能处】。正文每次当场写，章永远一样 —— 卡片靠这几句被认出来
+- **输入里根本没有观点的**（纯情绪、复读、人身攻击，或极端到不可证伪）：新鲜度 0%，盖【Not even wrong —— 连错的资格都没有】，一两句说明为什么连争论都不构成，然后停
 - **每一方的分数写进那一方那段话里**，不另开打分表。只有一方就只有一个分数，不为对称去凑对立方
-- **单条观点也合法**；如果输入里根本没有真正的观点（只有情绪、八卦、复读），就写一句说明然后停，不要硬撑篇幅
+- **单条观点也合法**；不要硬撑篇幅
 
 ## 用法
 
@@ -85,13 +86,18 @@ README.md              这份
 docs/design.md         迭代记录：为什么这么改
 scripts/card-pil.py    卡片渲染器（纯 Pillow）
 scripts/report-card.py 卡片渲染器（无头浏览器版，对照用）
-assets/fonts/          标题字体 + 它们的授权
+assets/fonts/          标题字体 + 正文字体 + 它们的授权
 examples/              示例报告与成品图
 ```
 
 ## 字体授权
 
-`assets/fonts/` 下两套中文标题字体（[WD-XL Lubrifont SC](https://github.com/NightFurySL2001/WD-XL-font)、[ZCOOL QingKe HuangYou](https://github.com/googlefonts/zcool-qingke-huangyou)）均为 **SIL Open Font License 1.1**，可自由再分发，许可全文见 [`assets/fonts/OFL.txt`](assets/fonts/OFL.txt)。渲染器不依赖它们也能跑（会自动退到系统字体）。
+`assets/fonts/` 下的字体均为 **SIL Open Font License 1.1**，可自由再分发，许可全文见 [`assets/fonts/OFL.txt`](assets/fonts/OFL.txt)：
+
+- 中文标题：[WD-XL Lubrifont SC](https://github.com/NightFurySL2001/WD-XL-font)、[ZCOOL QingKe HuangYou](https://github.com/googlefonts/zcool-qingke-huangyou)
+- 中文正文：[Noto Sans CJK SC](https://github.com/notofonts/noto-cjk)（静态 Regular + Bold 一对，渲染器查找链的最优先项，随仓库走，机器上没装 Noto 也能出图）
+
+渲染器找不到包内字体时会退到系统字体链（`fc-list` → 固定路径 glob），都没有才报错退出。emoji 钉死 **Apple Color Emoji**（macOS 自带，鲜/烂章靠它），Linux 上退 Noto Color Emoji。
 
 ## License
 

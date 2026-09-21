@@ -15,11 +15,11 @@
 ```bash
 F=$(dirname "$(readlink -f ~/.hermes/skills/knowledge-cache/SKILL.md)")
 S="$F/SKILL.md"   # 注意：F 是包目录，grep 必须落到具体文件（旧写法直接 grep 目录，永远命中不了）
-# ① 不许残留会被照抄的具体例子（标签/口号/固定句式/比喻）
-grep -nE "红丸|社会正义|1850|衣服是新的|anecdotal|bullets" "$S" && echo "FAIL: 有会被照搬的例子" || echo "OK: 无例子残留"
+# ① 不许残留会被照抄的具体例子（标签/口号/固定句式/比喻；具象比喻只准留在对话里理解用，永不进包）
+grep -nE "红丸|社会正义|1850|衣服是新的|anecdotal|bullets|笛卡尔|自由派|大国博弈|地缘" "$S" && echo "FAIL: 有会被照搬的例子" || echo "OK: 无例子残留"
 # ② 牌子必须齐全（中文标记）
 # 牌子按当前契约（自然段版，无小标题）
-for k in 旧货鉴定 新鲜度 真正吵的是 省流; do grep -q "$k" "$S" || echo "FAIL: 缺牌 $k"; done
+for k in 老登观点鉴定器 新鲜度 论断 省流 Not even wrong 登瘾又犯了是么 出租车司机级别的 嘉豪觉得又自己行了 只有我 至少不无聊 这观点能处; do grep -q "$k" "$S" || echo "FAIL: 缺牌 $k"; done
 grep -qE "自然段|不设小标题" "$S" || echo "FAIL: 输出契约没写明自然段"
 grep -q "交付形态" "$S" || echo "FAIL: 缺「交付形态」节（出图）"
 # 卡片工具必须能跑（有脚本、语法过；两个渲染器都要）
