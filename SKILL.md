@@ -111,12 +111,15 @@ Use the language of the user's input, but **the markers themselves stay Chinese*
 md 在各处显示不完美（有的客户端不渲染加粗与表格，有的排版全乱），**只有图到哪儿都一样**。所以报告默认转成图再发：
 
 ```bash
-python3 scripts/report-card.py 报告.md          # → 报告.png（按内容高度裁齐）
-cat 报告.md | python3 scripts/report-card.py - --out out.png
+python3 scripts/card-pil.py 报告.md             # 默认：纯 Python + Pillow，不启动浏览器
+cat 报告.md | python3 scripts/card-pil.py - --out out.png
+python3 scripts/report-card.py 报告.md          # 备选：无头浏览器版（同一套版式，对照用）
 ```
 
-- 需要有 **PIL** 的解释器（无 PIL 也能出图，只是不裁剪、底部留白）
-- 宽度默认 780px，手机上正好；深底 + Geist，与这套体系其他产物一致
+- **默认走 `card-pil.py`**：只依赖 Pillow，不开浏览器、不联网，任何机器都能出图；宽度默认 780px、3× 像素
+- `report-card.py` 是同一套版式的浏览器版，留作视觉对照；它需要 firefox，不算默认路径
+- 色值一律取 **Cyber-Lab Dark** 设计令牌（`--fg #ededed` / `--fg-2 #a1a1a1` / `--fg-3 #6e6e6e` / `--hair-2 #3d3d3d`），不自己发明颜色
+- **一方以上的报告**：段落开头写 `[名字]` 或 `【名字】`，这一段就归他 —— 左侧色条换深浅、段首加一个名字签。这套设计是单色的，区分靠「深浅 + 文字签」，不引入色相；方数超过 4 档时色阶回卷，靠名字签区分
 - **文字版只在对方明确要可复制内容时给**，其余一律发图
 
 ## Judgment

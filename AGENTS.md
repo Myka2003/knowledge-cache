@@ -21,8 +21,12 @@ grep -nE "红丸|社会正义|1850|衣服是新的|anecdotal|bullets" "$F" && ec
 for k in 旧货鉴定 新鲜度 真正吵的是 省流; do grep -q "$k" "$F" || echo "FAIL: 缺牌 $k"; done
 grep -qE "自然段|不设小标题" "$F" || echo "FAIL: 输出契约没写明自然段"
 grep -q "交付形态" "$F" || echo "FAIL: 缺「交付形态」节（出图）"
-# 卡片工具必须能跑（有脚本、语法过）
+# 卡片工具必须能跑（有脚本、语法过；两个渲染器都要）
 python3 -c "import ast,pathlib;ast.parse(pathlib.Path('scripts/report-card.py').read_text())" 2>/dev/null || echo "FAIL: scripts/report-card.py 语法错"
+python3 -c "import ast,pathlib;ast.parse(pathlib.Path('scripts/card-pil.py').read_text())" 2>/dev/null || echo "FAIL: scripts/card-pil.py 语法错"
+python3 scripts/card-pil.py --help >/dev/null 2>&1 || echo "FAIL: scripts/card-pil.py 跑不起来（需要 Pillow）"
+# 色值不许自造：渲染器里出现的十六进制颜色必须都在 Cyber-Lab Dark 令牌集内（红/绿语义色除外）
+grep -oE "0x[0-9A-Fa-f]{2}, 0x[0-9A-Fa-f]{2}, 0x[0-9A-Fa-f]{2}" scripts/card-pil.py | sort -u
 # ③ 步骤数与契约必须一致（改过一条就要回头改另一条）
 grep -n "five in order" "$F" || echo "WARN: 步骤措辞与契约可能不同步"
 ```
