@@ -23,7 +23,14 @@ import sys
 import tempfile
 
 FONT_FILES = {
-    "CardHead": pathlib.Path("/home/riff/.local/share/fonts/WDXLLubrifontSC-Regular.ttf"),
+    # 优先包内（随包走，扔给任何 agent 都能用）；退回用户字体目录
+    "CardHead": next((p for p in [
+        pathlib.Path(__file__).resolve().parent.parent / "assets/fonts/WDXLLubrifontSC-Regular.ttf",
+        pathlib.Path("/home/riff/.local/share/fonts/WDXLLubrifontSC-Regular.ttf"),
+    ] if p.exists()), pathlib.Path("/nonexistent")),
+    "CardHeadAlt": next((p for p in [
+        pathlib.Path(__file__).resolve().parent.parent / "assets/fonts/ZCOOLQingKeHuangYou-Regular.ttf",
+    ] if p.exists()), pathlib.Path("/nonexistent")),
 }
 
 FONT_DIRS = [
