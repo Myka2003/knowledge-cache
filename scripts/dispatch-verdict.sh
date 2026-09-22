@@ -73,6 +73,30 @@ done
 
 command -v hermes >/dev/null || { echo "找不到 hermes" >&2; exit 1; }
 
+# ── 选对 hermes 二进制 ───────────────────────────────────
+# 这台机器上**有两个 hermes**：nix 包版（0.21.2，有 --oneshot）和 venv 老版（0.20.5，没有）。
+# ~/.local/bin/hermes 是个指向 venv 老版的 shim，在部分 PATH 里排在前面 → 直接 `hermes`
+# 会拿到老版，报 "unrecognized arguments: --oneshot"（2026-09-21 踩过两次）。
+# 所以：按能力挑，不按 PATH 挑。
+pick_hermes() {
+  for c in "${VERDICT_HERMES:-}" "$(command -v hermes 2>/dev/null)" \
+           /run/current-system/sw/bin/hermes /nix/var/nix/profiles/default/bin/hermes \
+           "$HOME/.local/bin/hermes"; do
+    if [ -n "$c" ] && [ -x "$c" ] && "$c" chat --help 2>&1 | grep -q -- '--oneshot'; then
+      printf '%s' "$c"; return 0
+    fi
+  done
+  return 1
+}
+HERMES_BIN="$(pick_hermes)" || {
+  echo "FAIL: 找不到支持 --oneshot 的 hermes（老版 venv 会报 unrecognized arguments）。" >&2
+  echo "      设 VERDICT_HERMES=/run/current-system/sw/bin/hermes 再跑。" >&2
+  exit 2
+}
+HERMES_VER="$("$HERMES_BIN" --version 2>/dev/null | head -1 || true)"
+# ↑ 必须带 `|| true`：`cmd | head -1` 会让上游吃 SIGPIPE → 非零，配合 set -e + pipefail
+#   会把整个脚本静默干掉（2026-09-21 踩过：rc=1、零输出，很难查）。
+
 # ── 首次准备：空的 verdict profile ──────────────────────
 # 主 session 的记忆永远不会进这里：profile 自带独立的 memories/。
 if [ "$SETUP" = 1 ]; then
@@ -152,7 +176,7 @@ fi
 #   3) 单独一个干净工作目录 + -s 显式技能 → 上下文里只有这一件事
 START=$(date +%s)
 set +e
-( cd "$OUTDIR" && hermes -p "$PROFILE" chat \
+( cd "$OUTDIR" && "$HERMES_BIN" -p "$PROFILE" chat \
     --query-file "$OUTDIR/prompt.txt" \
     --oneshot --quiet \
     -s "$SKILL_NAME" \
@@ -165,6 +189,12 @@ set +e
 RC=$?
 set -e
 DUR=$(( $(date +%s) - START ))
+# 命令留痕：出错时能复现（2026-09-21 有过一次 argparse 级失败，没留痕很难查）
+{
+  echo "hermes_bin: $HERMES_BIN  ($HERMES_VER)"
+  echo "argv: $HERMES_BIN -p $PROFILE chat --query-file $OUTDIR/prompt.txt --oneshot --quiet -s $SKILL_NAME -m $MODEL --provider $PROVIDER --reasoning $REASONING --ignore-rules --max-turns $TURNS --run-budget $BUDGET"
+  echo "rc: $RC  seconds: $DUR"
+} > "$OUTDIR/cmd.log"
 
 # ── 落盘 ────────────────────────────────────────────────
 if [ "$PROBE" = 1 ]; then
